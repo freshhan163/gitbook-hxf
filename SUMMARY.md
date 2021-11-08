@@ -10,7 +10,8 @@
     * [es6相关](js/es6.md)
 
 * [Vue相关](vue/README.md)
-    * [服务端渲染](vue/ssr.md)
+    * [2.x服务端渲染](vue/ssr.md)
+    * [3.x服务端渲染](vue/ssr-3.0.md)
 
 * [Node相关](node/README.md)
     * [graphql基础](node/graphql.md)

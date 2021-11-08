@@ -1,6 +1,7 @@
 # 服务端渲染相关知识
 ## Vue2.x SSR官方指南
-[官网](https://ssr.vuejs.org/zh/#%E4%BB%80%E4%B9%88%E6%98%AF%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%AB%AF%E6%B8%B2%E6%9F%93-ssr-%EF%BC%9F)
+[官方文档](https://ssr.vuejs.org/zh/#%E4%BB%80%E4%B9%88%E6%98%AF%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%AB%AF%E6%B8%B2%E6%9F%93-ssr-%EF%BC%9F)
+
 [官方demo](https://github.com/vuejs/vue-hackernews-2.0/)
 
 ## 介绍
@@ -13,18 +14,20 @@
 
 ### 服务端渲染和预渲染的区别
 
-预渲染不需要web服务器动态实时生成Html，webpack就可以完成（prerender-spa-plugin）
+预渲染不需要web服务器动态实时生成Html，webpack就可以完成（```prerender-spa-plugin```）。
 
 ## 基本用法
 ### 注意点
-<!--vue-ssr-outlet-->注释不能去掉，这里是HTML标记插入的地方；
+```<!--vue-ssr-outlet-->```注释不能去掉，这里是HTML标记插入的地方；
+
 使用方法：
+
 ```ssr.createRenderer().renderToString(app, context, callback)```
 
-```createRenderer(options)```可传入options参数，定制template等参数；
+```createRenderer(options)```可传入options参数，参数信息如下：
 * ```template```：页面模板，支持基本插值语法；
 * ```clientManifest```：客户端构建的manifest对象，该对象包含整个构建过程的信息。提供给bundleRenderer使用
-* ```inject```：使用template时，是否执行自动注入
+* ```inject```：使用template时，是否执行自动注入，默认为```true```。
 * ```shouldPreload```：是一个函数，用来控制什么文件生成 ```<link rel="preload">```
 * ```shouldPrefetch```：是一个函数，同上
 * ```runInNewContext```：只用于```createBundleRenderer```，默认情况下，bundle renderer创建一个新的V8上下文，并重新执行整个renderer，但这样开销很大。因此提供了 false | once选项。
@@ -32,21 +35,21 @@
 * ```cache```：建议使用```lru-cache```库；此外缓存对象至少要实现```get```和 ```set``属性。
 * ```directives```：允许服务端实现自定义指令。
 
-```renderToString(app, context)```如果没有参数callback，则返回一个promise；
+```renderToString(app, context, callback)```如果没有参数callback，则返回一个promise；
 * ```app```是一个Vue实例；
 * ```context```是要插入到html中的字段值；
 
-模板插值
+### 模板插值
 
-```createRenderer()```的template需要的几个参数，可以通过```renderToString(app, context)```的context传进去
+```createRenderer()```的template需要的几个参数，可以通过```renderToString(app, context)```的context传进去。
 
 
 ## 编写通用代码
 1.服务端渲染时，每次请求都应该是全新的、独立的应用程序；
 
-为了避免vuex、vue-router的全局污染，需要提供一个createApp函数，保证每次访问时都返回一个全新的实例。
+为了避免vuex、vue-router的全局污染，需要提供一个```createApp```函数，保证每次访问时都返回一个全新的实例。
 
-2.生命周期函数只能用beforeCreate 和 created。且不要在这两个函数中，做有副作用的操作
+2.生命周期函数只能用```beforeCreate``` 和 ```created```。且不要在这两个函数中，做有副作用的操作。
 
 3.浏览器和Node服务器 使用的API，不是完全相同的；针对适用于特定平台的API，在打包时一定要注意：
 * 操作DOM的API
@@ -54,18 +57,24 @@
 
 针对仅浏览器可用的API，需要惰性访问他们；
 
-4.vue的自定义指令处理
+集成第三方库时，也要注意是否符合以上要求，否则需要mock一些全局变量来使用他们，但这仍然会比较棘手。
+
+4.Vue的自定义指令
+
+针对直接操作DOM的自定义指令，在服务端渲染时，会导致错误。推荐两种解决方法：
+* 使用组件作为抽象机制？？？
+* 在创建server renderer时，用```directives```选项，提供服务器版本；
+
 
 ## 源码结构
 ### 如何避免污染
 为了避免多个请求间共享一个应用实例，导致数据的交叉污染，我们最好将App的实例化方法，提取为一个函数；
-
-比如针对vuex、router、event-bus等；
+对vuex、router、event-bus等的处理，都要抽象为一个函数哦！
 
 ### 为什么要在服务器上，使用webpack打包vue？
 webpack的许多功能，比如css-loader、file-loader在Node.js中不能运行，所以服务端、客户端需要各打包一份。
 
-由于两端都要打包，所以要有一个通用的app.js文件（new一个Vue实例），然后客户端（挂载实例）、服务端（返回app）都各有一个入口文件。
+由于两端都要打包，所以写打包配置时要有一个通用的app.js文件（new一个Vue实例），然后客户端（挂载实例）、服务端（返回app）都各有一个入口文件。
 
 ## 路由和代码分割
 
@@ -126,6 +135,7 @@ webpack的许多功能，比如css-loader、file-loader在Node.js中不能运行
 
 ## Bundle Renderer指引
 ```createBundleRenderer(serverBundle, options)```将服务端的代码和客户端的代码相结合，提供代码的热更新、关键css注入等。
+
 ```serverBundle```：可以是一个绝地路径，指向已经构建好的bundle文件（js/json）。也可以是由webpack + ```vue-server-renderer/server-plugin```生成的bundle对象。
 
 ```bundlre renderer```相比```renderer```有以下优点：
@@ -137,9 +147,12 @@ webpack的许多功能，比如css-loader、file-loader在Node.js中不能运行
 
 ## 构建配置
 基础配置：```base```
+
 客户端配置：```client```
+
 服务端配置：```server```
-    * ```externals.whitelist```
+* ```VueSSRServerPlugin```：可以将服务器的整个输出构建为单个的JSON文件，默认文件名为```vue-ssr-server-bundle.json```，可通过参数```filename```修改；
+* ```externals```：需要外置化处理的模块，可以提高构建速度；```whitelist```属性可以排除需要处理的依赖模块
 
 ### 生成clientManifest
 renderer需要有服务器和客户端的构建信息：server bundle 和 客户端清单（client manifest）
