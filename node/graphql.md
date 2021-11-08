@@ -6,6 +6,8 @@
 
 3.[30分钟了解GraphQL核心概念](https://segmentfault.com/a/1190000014131950)
 
+4.[用Apollo Server搭建GraphQL的服务端和客户端](https://juejin.cn/post/6844903811148955656#heading-1)
+
 ## 【30分钟了解GraphQL核心概念】学习总结
 ### 1.什么是GraphQL
 * GraphQL是一种查询语言，可由前端通过一张Schema和声明一些Type，拿到我们想要的数据和格式；
@@ -62,3 +64,5 @@ query {
   "variables": { "myVariable": "someValue", ... }
 }
 ```
+
+## 用Apollo Server搭建GraphQL的服务端和客户端
