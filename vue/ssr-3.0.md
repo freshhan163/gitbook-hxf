@@ -1,5 +1,4 @@
 # 服务端渲染相关知识
-## Vue3.x SSR官方指南
 [官方文档](https://v3.cn.vuejs.org/guide/ssr/introduction.html#%E4%BB%80%E4%B9%88%E6%98%AF%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%B8%B2%E6%9F%93-ssr)
 
 ## 介绍
@@ -14,7 +13,8 @@ npm install @vue/server-renderer
 注意：Node版本需要是12+；
 
 ### 渲染一个Vue应用
-```createSSRApp```从```vue```库中导入。
+```createSSRApp()```从```vue```库中导入。
+
 ```renderToString(app)```从```@vue/server-renderer```库中导入。
 
 ## 编写通用的代码
@@ -40,8 +40,10 @@ npm install @vue/server-renderer
 
 ### 介绍构建步骤
 ```App.vue```：根组件
+
 ```entry-client.js```：引用```createSSRApp```创建应用并挂载到DOM中。
-```entry-server.js```：引用```createSSRApp```创建应用，并返回创建的应用。
+
+```entry-server.js```：引用```createSSRApp```创建应用，并返回创建的应用app。
 
 ## 构建配置
 ### 服务端构建和客户端构建的不同
@@ -85,7 +87,7 @@ Vue Router提供了懒加载，允许动态import```() => import()```
 即将服务端静态的HTML 转换为 客户端动态的DOM：```createSSRApp```
 
 使用时要注意以下两点：
-* 确保客户端和服务端的状态一直，不要依赖客户端特有的API
+* 保证客户端和服务端的状态一致，不要依赖客户端特有的API。
 * 确认模板中编写的HTML是有效的，有些浏览器会自动注入一些dom，比如```<tbody>```，可以使用[HTML验证器插件](https://html-validate.org/)
 
 ## Vue2 VS Vue3
@@ -107,9 +109,78 @@ router.onReady()
 * Vue3：
 ```JS
 const app = createSSRApp(App);
-const router = reateRouter(createWebHistory());
+const router = createRouter(createWebHistory());
 app.use(router);
 await router.isReady().then();
 ```
 
-### 流程对比
+## Vue SSR demo配置
+* 客户端
+    * app.js：createSSRApp、createRouter、createStore ==> createApp（避免状态污染）
+    * client-entry.js
+        * 调用createApp
+        * router.isReady
+        * App.mount()
+    * server-entry.js
+        * 调用createApp：每次访问都生成一个实例
+        * 修改url，await router.isReady
+        * 修改ssrContext的 state参数
+        * 返回app
+* 构建配置—webpack
+    * 不同的入口
+    * webpack.base.js
+        * mode
+        * resolve | module | optimizaiton
+        * Plugins
+            * VueLoaderPlugin，现在直接使用16.x即可，不用再用vue-loader-v16
+    * webpack.server.js
+        * server整体打包为一个server-bundle
+        * Webpack-node-externals
+        * target：node
+        * plugins
+            * 生成server-bundle.json（webpack-client-manifest）
+    * webpack.client.js
+        * entry
+        * optimization
+        * Plugins：添加VueSSRPlugin（生成client-manifest.json）
+            * Workbox-webpack-plugin：提供service-worker服务、资源的预缓存（prod模式添加）
+* development环境下（setup-dev-server.js配置）
+    * 客户端打包
+    * 客户端添加devMiddleware、hotMiddleware
+    * 客户端打包成功后，从内存中读取```client-manifest.json```（memory-fs）
+    * express添加```hot-middleware```
+    * 服务端打包
+    * 从内存中读取```server-bundle.json```（memory-fs）
+    * 服务端监控文件变化：然后update()
+* server启动
+    * development环境（用```vue-bundle-renderer```库）
+    * ```createBundleRenderer(bundle, options) ```依赖于 ```renderOptions.bundleRunner.createBundle(bundle, options)```
+        * ```bundle```
+            * ```string```
+            * ```object```：包含basedir、entry、files、maps参数，其中files包含具体的文件内容
+        * ```options```：具体请看[官方文档](https://github.com/nuxt-contrib/vue-bundle-renderer#readme)
+    * production环境（用vue库提供的API```createSSRApp```）
+        * manifest是指server的manifest
+        * 加载createSSRApp函数
+        ```js
+        const appPath = path.join(__dirname, "../dist", manifest["app.js"]);
+        const createApp = require(appPath).default;
+
+        // 生成html
+        const app = createApp();
+        const page = await renderToString(app);
+        ```
+
+## Vue3.0 SSR渲染用到的库
+* ```webpack-manifest-plugin```：生成json文件（客户端、服务端通用），也可以自定义plugin（获取json，生成```createBundleRenderer```API需要的options即可）
+* ```vue```
+    * ```createSSRApp```：生成SSRApp
+    * ```vue/server-renderer```：从3.2.13+版本开始，```@vue/server-renderer```包已经被集成到了```vue```库中
+        * ```renderToString```：根据传入的内容，渲染生成html
+* ```vue-bundle-renderer```：为vue3.0提供的 bundle renderer，依赖于 bundle-runner
+    * ```createRenderer```
+    * ```createBundleRenderer(bundle, options)```
+        * ```renderToString```：根据传入的内容，渲染生成html
+* ```bundle-runner```：返回bundle
+    * ```createBundle(bundle)```：bundle参数需要有```basedir、entry、files、maps```等参数
+* ```vue-server-renderer```：适用于vue2.x，vue3.x中改用上面的```vue-bundle-renderer```
