@@ -10,6 +10,7 @@
     * [es6相关](js/es6.md)
 
 * [Vue相关](vue/README.md)
+    * [3.x 官方文档](vue/vue3.md)
     * [2.x服务端渲染](vue/ssr.md)
     * [3.x服务端渲染](vue/ssr-3.0.md)
 
